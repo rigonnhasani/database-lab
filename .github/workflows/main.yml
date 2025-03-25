@@ -1,56 +1,48 @@
-name: Docker Compose CI/CD
+name: Docker Compose Deploy
 
 on:
   push:
     branches:
-      - main   # Trigger on push to the main branch
+      - main  # Adjust branch name to your default branch
   pull_request:
     branches:
-      - main   # Trigger on pull requests to the main branch
+      - main  # Adjust to the target branch for PRs
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
     
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Cache Docker layers
-      uses: actions/cache@v2
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-docker-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-docker-
-    
-    - name: Set up Docker Compose
-      run: |
-        sudo apt-get update
-        sudo apt-get install docker-compose
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Build and run Docker containers
-      env:
-        MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
-        MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
-        MYSQL_USER: ${{ secrets.MYSQL_USER }}
-        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-      run: |
-        # Build and start containers in detached mode
-        docker-compose up -d --build
+      
+          
+      - name: Set up Docker Compose
+        uses: docker/setup-buildx-action@v2
 
-    - name: Wait for MySQL to be ready
-      run: |
-        sleep 30  # Wait for MySQL to start (adjust timing if needed)
-    
-    - name: Run database initialization (optional)
-      run: |
-        docker exec -i mysql_lab mysql -u root -p${{ secrets.MYSQL_ROOT_PASSWORD }} ${MYSQL_DATABASE} < ./init-scripts/create_employees_table.sql
-        docker exec -i mysql_lab mysql -u root -p${{ secrets.MYSQL_ROOT_PASSWORD }} ${MYSQL_DATABASE} < ./init-scripts/insert_employees.sql
+      - name: Build and Run Docker Containers
+        run: |
+          # Ensure Docker Compose is available
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
 
-    - name: Stop Docker containers
-      run: |
-        docker-compose down
+          # Set up environment variables from GitHub secrets
+          echo "MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}" >> .env
+          echo "MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}" >> .env
+          echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> .env
+          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
+
+          # Build and start the services
+          docker-compose -f docker-compose.yml up -d
+
+      - name: Run healthcheck for MySQL service
+        run: |
+          docker exec mysql_lab mysqladmin ping -h localhost -p${{ secrets.MYSQL_ROOT_PASSWORD }}
+
+      - name: Clean up Docker containers
+        run: |
+          docker-compose down
