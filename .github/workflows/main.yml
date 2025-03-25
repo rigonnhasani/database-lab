@@ -1,28 +1,45 @@
-name: Database Insertion Pipeline
+name: Deploy SQL Scripts
 
 on:
   push:
     branches:
-      - main  # You can specify a branch or event that triggers the pipeline
+      - main  # Trigger this on a push to the main branch
+  pull_request:
+    branches:
+      - main  # Trigger this on a PR to the main branch
 
 jobs:
-  db-insertion:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
 
     steps:
-      # Step 1: Checkout the code
+      # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Step 2: Set up MySQL client
-      - name: Set up MySQL client
-        run: sudo apt-get install mysql-client
+      # Set up MySQL (or the relevant database client)
+      - name: Set up MySQL
+        uses: docker://mysql:latest
+        with:
+          entrypoint: /bin/bash
+          args: "-c 'while ! mysqladmin ping --silent; do sleep 1; done'"
 
-      # Step 3: Run SQL script to insert data into the database
-      - name: Insert data into database
+      # Run the SQL script for creating the table
+      - name: Run create table SQL script
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
         run: |
-          mysql -h ${{ secrets.DB_HOST }} -u ${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} <<EOF
-          INSERT INTO employees (name, role) VALUES
-          ('Altin', 'Devops Engineer'),
-          ('Enis', 'Developer');
-          EOF
+          mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < ./init-scripts/create_table.sql
+
+      # Run the SQL script for inserting data
+      - name: Run insert data SQL script
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: |
+          mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < ./init-scripts/insert_data.sql
