@@ -1,48 +1,49 @@
-name: Docker Compose Deploy
+name: Docker Compose MySQL and Adminer
 
 on:
   push:
     branches:
-      - main  # Adjust branch name to your default branch
+      - main 
   pull_request:
     branches:
-      - main  # Adjust to the target branch for PRs
+      - main  
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-    
-      - name: Checkout repository
+     
+      - name: Checkout code
         uses: actions/checkout@v2
 
+    
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
       
-          
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-docker-
+
       - name: Set up Docker Compose
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and Run Docker Containers
         run: |
-          # Ensure Docker Compose is available
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
-
-          # Set up environment variables from GitHub secrets
-          echo "MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}" >> .env
-          echo "MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}" >> .env
-          echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> .env
-          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
-
-          # Build and start the services
           docker-compose -f docker-compose.yml up -d
 
-      - name: Run healthcheck for MySQL service
-        run: |
-          docker exec mysql_lab mysqladmin ping -h localhost -p${{ secrets.MYSQL_ROOT_PASSWORD }}
 
-      - name: Clean up Docker containers
+      - name: Wait for MySQL to be ready
         run: |
-          docker-compose down
+          docker exec mysql_lab mysqladmin ping -h localhost -p${{ secrets.MYSQL_ROOT_PASSWORD }} --silent
+
+
+      - name: Run tests (optional)
+        run: |
+          # Example: Run any test or verification commands here
+          echo "Running test scripts..."
+
+      - name: Clean up containers
+        run: |
+          docker-compose -f docker-compose.yml down
