@@ -1,49 +1,28 @@
-name: Docker Compose MySQL and Adminer
+name: Database Insertion Pipeline
 
 on:
   push:
     branches:
-      - main 
-  pull_request:
-    branches:
-      - main  
+      - main  # You can specify a branch or event that triggers the pipeline
 
 jobs:
-  build-and-deploy:
+  db-insertion:
     runs-on: ubuntu-latest
+
     steps:
-     
+      # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
 
-    
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      # Step 2: Set up MySQL client
+      - name: Set up MySQL client
+        run: sudo apt-get install mysql-client
 
-      
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-docker-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-docker-
-
-      - name: Set up Docker Compose
+      # Step 3: Run SQL script to insert data into the database
+      - name: Insert data into database
         run: |
-          docker-compose -f docker-compose.yml up -d
-
-
-      - name: Wait for MySQL to be ready
-        run: |
-          docker exec mysql_lab mysqladmin ping -h localhost -p${{ secrets.MYSQL_ROOT_PASSWORD }} --silent
-
-
-      - name: Run tests (optional)
-        run: |
-          # Example: Run any test or verification commands here
-          echo "Running test scripts..."
-
-      - name: Clean up containers
-        run: |
-          docker-compose -f docker-compose.yml down
+          mysql -h ${{ secrets.DB_HOST }} -u ${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} <<EOF
+          INSERT INTO employees (name, role) VALUES
+          ('Altin', 'Devops Engineer'),
+          ('Enis', 'Developer');
+          EOF
