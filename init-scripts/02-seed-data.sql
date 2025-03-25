@@ -1,4 +1,4 @@
-INSTER INTO employees (name, role)
+INSERT INTO employees (name, role)
 VALUES
 ('Altin', 'Devops Engineer').
 ('Enis', 'Developer');
