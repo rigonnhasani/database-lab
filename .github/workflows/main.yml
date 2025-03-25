@@ -1,4 +1,4 @@
-name: Deploy SQL Scripts
+name: Deploy SQL Scripts with Docker Compose
 
 on:
   push:
@@ -17,29 +17,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Set up MySQL (or the relevant database client)
-      - name: Set up MySQL
-        uses: docker://mysql:latest
-        with:
-          entrypoint: /bin/bash
-          args: "-c 'while ! mysqladmin ping --silent; do sleep 1; done'"
+      # Set up Docker Compose
+      - name: Set up Docker Compose
+        uses: docker/setup-buildx-action@v2
+
+      # Start MySQL and Adminer using Docker Compose
+      - name: Start Docker Compose
+        run: |
+          docker-compose -f docker-compose.yml up -d
+
+      # Wait for MySQL to be ready
+      - name: Wait for MySQL to be ready
+        run: |
+          until docker exec mysql_lab mysqladmin -u root -prootpassword ping --silent; do
+            echo "Waiting for MySQL..."
+            sleep 5
+          done
 
       # Run the SQL script for creating the table
       - name: Run create table SQL script
-        env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
         run: |
-          mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < ./init-scripts/create_table.sql
+          docker exec -i mysql_lab mysql -u root -prootpassword demo_db < ./init-scripts/create_table.sql
 
       # Run the SQL script for inserting data
       - name: Run insert data SQL script
-        env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
         run: |
-          mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < ./init-scripts/insert_data.sql
+          docker exec -i mysql_lab mysql -u root -prootpassword demo_db < ./init-scripts/insert_data.sql
+
+      # Shut down Docker Compose
+      - name: Shut down Docker Compose
+        run: |
+          docker-compose -f docker-compose.yml down
