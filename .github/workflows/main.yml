@@ -1,50 +1,26 @@
-name: Deploy SQL Scripts with Docker Compose
-
-on:
-  push:
-    branches:
-      - main  # Trigger this on a push to the main branch
-  pull_request:
-    branches:
-      - main  # Trigger this on a PR to the main branch
+name: MySQL & Adminer CI
+on: [push]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
-
+  test-mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: demo_db
+          MYSQL_USER: demouser
+          MYSQL_PASSWORD: demopassword
+        ports:
+          - 3307:3306
     steps:
-      # Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # Set up Docker Compose
-      - name: Set up Docker Compose
-        uses: docker/setup-buildx-action@v2
+      - name: Install MySQL Client
+        run: sudo apt-get install -y mysql-client
 
-      # Start MySQL and Adminer using Docker Compose
-      - name: Start Docker Compose
+      - name: Test MySQL Connection
         run: |
-          docker-compose -f docker-compose.yml up -d
-
-      # Wait for MySQL to be ready
-      - name: Wait for MySQL to be ready
-        run: |
-          until docker exec mysql_lab mysqladmin -u root -prootpassword ping --silent; do
-            echo "Waiting for MySQL..."
-            sleep 5
-          done
-
-      # Run the SQL script for creating the table
-      - name: Run create table SQL script
-        run: |
-          docker exec -i mysql_lab mysql -u root -prootpassword demo_db < ./init-scripts/create_table.sql
-
-      # Run the SQL script for inserting data
-      - name: Run insert data SQL script
-        run: |
-          docker exec -i mysql_lab mysql -u root -prootpassword demo_db < ./init-scripts/insert_data.sql
-
-      # Shut down Docker Compose
-      - name: Shut down Docker Compose
-        run: |
-          docker-compose -f docker-compose.yml down
+          mysql -h 127.0.0.1 -P 3307 -u demouser -pdemopassword -e "SHOW DATABASES;"
