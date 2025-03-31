@@ -10,11 +10,11 @@ services:
       MYSQL_USER: demouser
       MYSQL_PASSWORD: demopassword
     ports:
-      - '3307:3306'
+      - '3307:3307'
     volumes:
       - mysql_data:/var/lib/mysql
       
-      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./init-scripts:/docker-entrypoint-initdb.d
 
       - ./config/my.cnf:/etc/mysql/conf.d/my.cnf
     healthcheck:
