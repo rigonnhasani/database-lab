@@ -1,42 +1,37 @@
-name: Deploy MySQL with Docker
+name: Automate Database Lab
 
 on:
   push:
     branches:
-      - main  # Change to your preferred branch
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  deploy:
+  setup-database:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v2
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
 
-      - name: Start MySQL & Adminer
-        run: docker-compose up -d
+    - name: Start Docker Compose
+      run: |
+        docker-compose up -d
+      working-directory: ./  # Adjust if docker-compose.yaml is in a subdirectory
 
-      - name: Wait for MySQL to Be Ready
-        run: |
-          echo "Waiting for MySQL to start..."
-          for i in {1..30}; do
-            if docker exec mysql_lab mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD --silent; then
-              echo "MySQL is up!"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "MySQL failed to start"
-          exit 1
+    - name: Wait for database to be ready
+      run: |
+        until docker exec $(docker ps -q -f name=database-lab) mysqladmin ping --silent; do
+          echo "Waiting for database to be ready..."
+          sleep 5
+        done
 
-      - name: Run Database Migrations
-        run: |
-          docker exec -i mysql_lab mysql -u demouser -pdemopassword demo_db < init-scripts/init.sql
-
-      - name: Verify MySQL Tables
-        run: |
-          docker exec -i mysql_lab mysql -u demouser -pdemopassword -e "SHOW TABLES;" demo_db
-
+    - name: Run initialization scripts
+      run: |
+        docker exec $(docker ps -q -f name=database-lab) mysql -u root -prootpassword < /init-scripts/01-create-table.sql
+        docker exec $(docker ps -q -f name=database-lab) mysql -u root -prootpassword < /init-scripts/02-seed-data.sql
