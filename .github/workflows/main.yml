@@ -22,7 +22,7 @@ jobs:
     - name: Start Docker Compose
       run: |
         docker-compose up -d
-      working-directory: ./  # Adjust if docker-compose.yaml is in a subdirectory
+      working-directory: ./init-scripts  # Adjust if docker-compose.yaml is in a subdirectory
 
     - name: Wait for database to be ready
       run: |
